@@ -1,0 +1,47 @@
+{
+  "name": "mip-zswap-offer",
+  "version": "0.1.0",
+  "description": "Zero-dependency TypeScript library implementing MIP-offer-files and MIP-p2p-atomic-swaps for Midnight Zswap offers.",
+  "type": "module",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@midnight-ntwrk/ledger-v8": "*",
+    "@scure/base": "^1.1.0 || ^2.0.0",
+    "@noble/curves": "^1.0.0 || ^2.0.0",
+    "@noble/hashes": "^1.0.0 || ^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@midnight-ntwrk/ledger-v8": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@scure/base": "^2.0.0",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "typescript": "^5.5.0"
+  },
+  "keywords": ["midnight", "zswap", "bech32m", "mip", "atomic-swap"],
+  "license": "Apache-2.0"
+}
