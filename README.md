@@ -8,8 +8,8 @@ Proposals:
 | **[MIP-offer-files]**      | Binary serialization + bech32m encoding of proven Zswap partial transactions (`zswapoffer` HRP) |
 | **[MIP-p2p-atomic-swaps]** | Application-layer `OfferPayload` schema, validation, optional BIP-340 Schnorr auth envelope     |
 
-[MIP-offer-files]: https://github.com/midnight-ntwrk/midnight-improvement-proposals
-[MIP-p2p-atomic-swaps]: https://github.com/midnight-ntwrk/midnight-improvement-proposals
+[MIP-offer-files]: https://github.com/andrew-fleming/midnight-improvement-proposals/blob/a763b64f96ef3cee4ce1fafc29fdf87cf21d39d2/mips/mip-offer-files.md
+[MIP-p2p-atomic-swaps]: https://github.com/andrew-fleming/midnight-improvement-proposals/blob/585eb846bda02e5f3a7dcfd30d9d0f5d7963540c/mips/mip-p2p-atomic-swaps.md
 
 The library is the single source of truth for the offer lifecycle:
 
