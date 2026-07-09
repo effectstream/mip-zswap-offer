@@ -1,16 +1,21 @@
 /**
- * mip-zswap-offer — MIP-offer-files + MIP-p2p-atomic-swaps codec.
+ * mip-zswap-offer — MIP-0005 + MIP-0006 reference library.
  *
- * Public API surface re-exported here. See SPEC.md for the full contract.
+ * Prefer importing from `mip-zswap-offer/mip5` or `mip-zswap-offer/mip6`
+ * when you want a clear ownership boundary.
  */
 
-export * from './types.js';
-export { OFFER_HRP, encodeOffer, decodeOffer } from './codec.js';
-export { buildOffer, expiresAtFromTtl, normalizeToken } from './builder.js';
-export { serializeOffer, deserializeOffer, toWireOffer } from './serializer.js';
+export { OFFER_HRP, OfferFiles } from "./mip5/index.js";
 export {
-  validateOffer,
-  validateOfferAsync,
-  isWellFormedOffer,
-} from './validator.js';
-export { signOffer, verifyOfferAuth, createSigningPayload } from './auth.js';
+  P2pAtomicSwaps,
+  UnknownTokenTagError,
+  NotASwapError,
+} from "./mip6/index.js";
+export type {
+  TokenKind,
+  TokenLeg,
+  OnchainOfferPayload,
+  OffchainOfferPayload,
+  OfferStatus,
+  OffchainOfferInput,
+} from "./mip6/index.js";

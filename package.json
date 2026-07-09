@@ -1,47 +1,42 @@
 {
   "name": "mip-zswap-offer",
-  "version": "0.1.0",
-  "description": "Zero-dependency TypeScript library implementing MIP-offer-files and MIP-p2p-atomic-swaps for Midnight Zswap offers.",
+  "version": "0.2.0",
+  "description": "MIP-0005 Offer Files + MIP-0006 P2P Atomic Swaps reference library",
   "type": "module",
-  "main": "src/index.ts",
-  "module": "src/index.ts",
-  "types": "src/index.ts",
+  "license": "Apache-2.0",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mip5": {
+      "types": "./dist/mip5/index.d.ts",
+      "import": "./dist/mip5/index.js"
+    },
+    "./mip6": {
+      "types": "./dist/mip6/index.d.ts",
+      "import": "./dist/mip6/index.js"
     }
   },
   "files": [
     "dist",
     "src",
-    "SPEC.md"
+    "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "build": "tsc -p tsconfig.json",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
   },
-  "dependencies": {},
   "peerDependencies": {
     "@midnight-ntwrk/ledger-v8": "*",
-    "@scure/base": "^1.1.0 || ^2.0.0",
-    "@noble/curves": "^1.0.0 || ^2.0.0",
-    "@noble/hashes": "^1.0.0 || ^2.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@midnight-ntwrk/ledger-v8": {
-      "optional": true
-    }
+    "@scure/base": "^1.1.0 || ^2.0.0"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@midnight-ntwrk/ledger-v8": "8.0.3",
     "@scure/base": "^2.0.0",
-    "@noble/curves": "^1.9.7",
-    "@noble/hashes": "^1.8.0",
-    "typescript": "^5.5.0"
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.8.0"
   },
-  "keywords": ["midnight", "zswap", "bech32m", "mip", "atomic-swap"],
-  "license": "Apache-2.0"
+  "keywords": ["midnight", "zswap", "bech32m", "mip", "atomic-swap"]
 }

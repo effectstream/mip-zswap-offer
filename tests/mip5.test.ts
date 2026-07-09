@@ -1,0 +1,58 @@
+import { describe, expect, test } from "bun:test";
+import { bech32m } from "@scure/base";
+
+import { OFFER_HRP, OfferFiles } from "../src/mip5/OfferFiles.ts";
+
+function randomBytes(n: number): Uint8Array {
+  const b = new Uint8Array(n);
+  for (let i = 0; i < n; i++) b[i] = (i * 131 + 7) & 0xff;
+  return b;
+}
+
+describe("MIP-0005 OfferFiles", () => {
+  test("HRP is swapoffer", () => {
+    expect(OFFER_HRP).toBe("swapoffer");
+    expect(OfferFiles.HRP).toBe("swapoffer");
+  });
+
+  test("round-trips short payload", () => {
+    const bytes = new Uint8Array([1, 2, 3, 4, 5]);
+    const encoded = OfferFiles.encode(bytes);
+    expect(encoded.startsWith(`${OFFER_HRP}1`)).toBe(true);
+    expect(OfferFiles.decode(encoded)).toEqual(bytes);
+  });
+
+  test("round-trips payloads larger than the 90-char bech32 limit", () => {
+    const bytes = randomBytes(4096);
+    const encoded = OfferFiles.encode(bytes);
+    expect(encoded.length).toBeGreaterThan(1000);
+    expect(OfferFiles.decode(encoded)).toEqual(bytes);
+  });
+
+  test("encodes the empty payload", () => {
+    const encoded = OfferFiles.encode(new Uint8Array(0));
+    expect(OfferFiles.decode(encoded)).toEqual(new Uint8Array(0));
+  });
+
+  test("decode rejects wrong HRP (including legacy zswapoffer)", () => {
+    const words = bech32m.toWords(new Uint8Array([1, 2, 3]));
+    const foreign = bech32m.encode(
+      "zswapoffer",
+      words,
+      false as unknown as number,
+    );
+    expect(() => OfferFiles.decode(foreign)).toThrow(/HRP/);
+  });
+
+  test("decode rejects corrupted checksum", () => {
+    const encoded = OfferFiles.encode(new Uint8Array([1, 2, 3, 4]));
+    const last = encoded.at(-1)!;
+    const mutated = encoded.slice(0, -1) + (last === "q" ? "p" : "q");
+    expect(() => OfferFiles.decode(mutated)).toThrow();
+  });
+
+  test("encode rejects non-Uint8Array", () => {
+    // @ts-expect-error intentional
+    expect(() => OfferFiles.encode([1, 2, 3])).toThrow();
+  });
+});
