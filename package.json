@@ -37,5 +37,6 @@
     "@scure/base": "^2.0.0",
     "@types/bun": "^1.2.0",
     "typescript": "^5.8.0"
-  }
+  },
+  "keywords": ["midnight", "zswap", "bech32m", "mip", "atomic-swap"]
 }
