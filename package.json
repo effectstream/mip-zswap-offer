@@ -1,0 +1,41 @@
+{
+  "name": "mip-zswap-offer",
+  "version": "0.2.0",
+  "description": "MIP-0005 Offer Files + MIP-0006 P2P Atomic Swaps reference library",
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mip5": {
+      "types": "./dist/mip5/index.d.ts",
+      "import": "./dist/mip5/index.js"
+    },
+    "./mip6": {
+      "types": "./dist/mip6/index.d.ts",
+      "import": "./dist/mip6/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "peerDependencies": {
+    "@midnight-ntwrk/ledger-v8": "*",
+    "@scure/base": "^1.1.0 || ^2.0.0"
+  },
+  "devDependencies": {
+    "@midnight-ntwrk/ledger-v8": "8.0.3",
+    "@scure/base": "^2.0.0",
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.8.0"
+  }
+}
