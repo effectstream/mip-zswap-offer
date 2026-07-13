@@ -1,5 +1,5 @@
 {
-  "name": "mip-zswap-offer",
+  "name": "@effectstream/mip-zswap-offer",
   "version": "0.2.0",
   "description": "MIP-0005 Offer Files + MIP-0006 P2P Atomic Swaps reference library",
   "type": "module",
