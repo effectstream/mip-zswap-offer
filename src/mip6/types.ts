@@ -21,7 +21,14 @@ export interface TokenLeg {
 // surface with no ledger-authenticated alternative short of a protocol
 // update (see MIP-0006 Future Work).
 
-export type OfferStatus = "live" | "consumed" | "expired";
+/**
+ * OPTIONAL indexer bookkeeping — observed, not consensus data. `cancelled`
+ * is a best-effort refinement of `consumed` (maker spent the inputs outside
+ * a settlement); two conforming indexers may disagree on it, so consumers
+ * MUST treat it as `consumed`, never as a state to depend on. See MIP-0006
+ * "Fill vs cancel".
+ */
+export type OfferStatus = "live" | "consumed" | "cancelled" | "expired";
 
 /**
  * Indexer discovery payload. Everything under `computed` is derived/observed.
@@ -43,7 +50,7 @@ export interface OffchainOfferPayload {
     expiresAt?: string;
     inputNullifiers: string[];
     firstSeenAt: string;
-    status: OfferStatus;
+    status?: OfferStatus;
   };
 }
 
