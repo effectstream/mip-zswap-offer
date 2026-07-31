@@ -6,6 +6,8 @@
  */
 
 import { bech32m } from "@scure/base";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import {
   Transaction,
   type Bindingish,
@@ -69,5 +71,16 @@ export class OfferFiles {
       "binding" as const,
       OfferFiles.decode(text),
     );
+  }
+
+  /**
+   * Content address (MIP-0005 "Content address"): lowercase hex SHA-256 of
+   * the canonical raw Transaction bytes. Equal for any holder of either
+   * representation (`offerId(decode(bech32)) === offerId(bytes)`) and, since
+   * the DA layer publishes exactly these bytes (MIP-0006), also the hash of
+   * the offer's DA blob. Never hash the bech32m string.
+   */
+  static offerId(offerBytes: Uint8Array): string {
+    return bytesToHex(sha256(offerBytes));
   }
 }

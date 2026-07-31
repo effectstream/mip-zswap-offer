@@ -1,6 +1,6 @@
 {
   "name": "@effectstream/mip-zswap-offer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MIP-0005 Offer Files + MIP-0006 P2P Atomic Swaps reference library",
   "type": "module",
   "license": "Apache-2.0",
@@ -38,5 +38,14 @@
     "@types/bun": "^1.2.0",
     "typescript": "^5.8.0"
   },
-  "keywords": ["midnight", "zswap", "bech32m", "mip", "atomic-swap"]
+  "keywords": [
+    "midnight",
+    "zswap",
+    "bech32m",
+    "mip",
+    "atomic-swap"
+  ],
+  "dependencies": {
+    "@noble/hashes": "^1.8.0"
+  }
 }

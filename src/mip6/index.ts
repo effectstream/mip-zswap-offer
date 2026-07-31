@@ -4,7 +4,6 @@
 export type {
   TokenKind,
   TokenLeg,
-  OnchainOfferPayload,
   OffchainOfferPayload,
   OfferStatus,
   OffchainOfferInput,

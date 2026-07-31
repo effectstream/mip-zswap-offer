@@ -7,8 +7,8 @@ Depends on MIP-0005 via `OfferFiles` (raw bytes on DA; bech32m for display).
 
 | Export | Role |
 |--------|------|
-| `P2pAtomicSwaps` | Class: `buildOnchain`, `toOffchain`, `deriveTokenLegs`, `assertTwoSided`, … |
-| `OnchainOfferPayload` | DA blob shape (`offer: Uint8Array`, optional `unverifiedMessage`) |
+| `P2pAtomicSwaps` | Class: `toOffchain`, `deriveTokenLegs`, `assertTwoSided`, `earliestIntentTtl`, … |
+| *(on-chain)* | The DA blob **is** the raw MIP-0005 `Transaction` bytes — no envelope (see MIP-0006) |
 | `OffchainOfferPayload` | Indexer discovery shape (`offerBech32` + `computed.*`) |
 | `TokenLeg` | `{ token, amount, type: SHIELDED \| UNSHIELDED }` |
 
@@ -17,6 +17,5 @@ Depends on MIP-0005 via `OfferFiles` (raw bytes on DA; bech32m for display).
 - **gives/wants are derived** from the transaction — never trusted from the maker.
 - **Two-sided**: ≥1 give and ≥1 want; give-only offers are rejected (`NotASwapError`).
 - **No auth envelope** — BIP-340 wrapper signing was removed from the MIP as unsound.
-- `unverifiedMessage` is explicitly untrusted.
 
 Does **not** publish to Celestia or implement the indexer REST API.

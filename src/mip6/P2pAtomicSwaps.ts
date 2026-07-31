@@ -11,7 +11,6 @@ import { OfferFiles } from "../mip5/OfferFiles.js";
 import type {
   OffchainOfferInput,
   OffchainOfferPayload,
-  OnchainOfferPayload,
   TokenKind,
   TokenLeg,
 } from "./types.js";
@@ -45,23 +44,6 @@ function tagToKind(tag: string): TokenKind {
  * MIP-0006 P2P swap helpers (static API).
  */
 export class P2pAtomicSwaps {
-  /** DA payload: raw MIP-0005 offer bytes + optional untrusted note. */
-  static buildOnchain(
-    offerBytes: Uint8Array,
-    unverifiedMessage?: string,
-  ): OnchainOfferPayload {
-    if (!(offerBytes instanceof Uint8Array)) {
-      throw new TypeError(
-        "P2pAtomicSwaps.buildOnchain: offer must be a Uint8Array",
-      );
-    }
-    const payload: OnchainOfferPayload = { version: 1, offer: offerBytes };
-    if (unverifiedMessage !== undefined) {
-      payload.unverifiedMessage = unverifiedMessage;
-    }
-    return payload;
-  }
-
   /**
    * Net imbalances → gives/wants, tagged SHIELDED / UNSHIELDED.
    * Same color on different layers stays separate. Dust is ignored.
@@ -180,11 +162,11 @@ export class P2pAtomicSwaps {
 
     const payload: OffchainOfferPayload = {
       version: 1,
-      offerBech32: OfferFiles.encode(input.offerBytes),
+      offerId: OfferFiles.offerId(input.offerBytes),
       computed,
     };
-    if (input.unverifiedMessage !== undefined) {
-      payload.unverifiedMessage = input.unverifiedMessage;
+    if (input.includeBech32 !== false) {
+      payload.offerBech32 = OfferFiles.encode(input.offerBytes);
     }
     return payload;
   }
