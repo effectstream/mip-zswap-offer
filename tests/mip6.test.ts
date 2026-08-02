@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { OFFER_HRP } from "../src/mip5/OfferFiles.ts";
+import { OfferFiles, OFFER_HRP } from "../src/mip5/OfferFiles.ts";
 import {
   NotASwapError,
   P2pAtomicSwaps,
@@ -105,10 +105,19 @@ describe("MIP-0006 two-sided rule", () => {
 });
 
 describe("MIP-0006 payload builders", () => {
-  test("buildOnchain wraps raw bytes", () => {
-    const offer = new Uint8Array([1, 2, 3]);
-    const p = P2pAtomicSwaps.buildOnchain(offer, "hi");
-    expect(p).toEqual({ version: 1, offer, unverifiedMessage: "hi" });
+  test("the on-chain envelope is gone — no buildOnchain export (spec removal)", () => {
+    // The DA blob IS the raw MIP-0005 bytes; a wrapper would need its own
+    // canonical byte encoding and carried nothing trustworthy.
+    expect((P2pAtomicSwaps as any).buildOnchain).toBeUndefined();
+  });
+
+  test("offerId is sha256 of the RAW bytes (never the string)", async () => {
+    const { createHash } = await import("node:crypto");
+    const offerBytes = new Uint8Array([1, 2, 3, 250, 251, 252]);
+    const expected = createHash("sha256").update(offerBytes).digest("hex");
+    expect(OfferFiles.offerId(offerBytes)).toBe(expected);
+    // interconvertibility: same id from either representation
+    expect(OfferFiles.offerId(OfferFiles.decode(OfferFiles.encode(offerBytes)))).toBe(expected);
   });
 
   test("toOffchain derives legs and encodes bech32", () => {
@@ -132,10 +141,31 @@ describe("MIP-0006 payload builders", () => {
       status: "live",
     });
     expect(off.version).toBe(1);
-    expect(off.offerBech32.startsWith(`${OFFER_HRP}1`)).toBe(true);
+    expect(off.offerId).toBe(OfferFiles.offerId(offerBytes));
+    expect(off.offerBech32!.startsWith(`${OFFER_HRP}1`)).toBe(true);
     expect(off.computed.gives[0]!.type).toBe("SHIELDED");
     expect(off.computed.wants[0]!.token).toBe("bb");
     expect(off.computed.inputNullifiers).toEqual(["dead"]);
+    expect((off as any).unverifiedMessage).toBeUndefined();
+  });
+
+  test("includeBech32: false omits the string but keeps offerId (list context)", () => {
+    const offerBytes = new Uint8Array([9, 9, 9]);
+    const tx = mockTx({
+      imbalances: new Map([
+        [0, new Map<unknown, bigint>([[shielded("aa"), 10n], [shielded("bb"), -5n]])],
+      ]),
+    });
+    const off = P2pAtomicSwaps.toOffchain({
+      offerBytes,
+      tx,
+      inputNullifiers: [],
+      firstSeenAt: "2026-01-01T00:00:00.000Z",
+      status: "live",
+      includeBech32: false,
+    });
+    expect(off.offerBech32).toBeUndefined();
+    expect(off.offerId).toBe(OfferFiles.offerId(offerBytes)); // at least one present
   });
 
   test("earliestIntentTtl picks the soonest ttl", () => {

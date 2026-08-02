@@ -13,32 +13,44 @@ export interface TokenLeg {
   type: TokenKind;
 }
 
-/**
- * DA-layer payload. `offer` is MIP-0005 raw Transaction bytes — not bech32m.
- */
-export interface OnchainOfferPayload {
-  version: 1;
-  offer: Uint8Array;
-  /** Free-form note. UNTRUSTED — not authenticated. */
-  unverifiedMessage?: string;
-}
+// NOTE: the on-chain envelope (OnchainOfferPayload) was removed from
+// MIP-0006: the DA blob IS the raw MIP-0005 Transaction bytes, nothing else.
+// A wrapper would need its own canonical byte encoding for implementations
+// to interoperate, its version duplicated the ledger's tagged serialization,
+// and its only other field (unverifiedMessage) was removed as a phishing
+// surface with no ledger-authenticated alternative short of a protocol
+// update (see MIP-0006 Future Work).
 
-export type OfferStatus = "live" | "consumed" | "expired";
+/**
+ * OPTIONAL indexer bookkeeping — observed, not consensus data. `cancelled`
+ * is a best-effort refinement of `consumed` (maker spent the inputs outside
+ * a settlement); two conforming indexers may disagree on it, so consumers
+ * MUST treat it as `consumed`, never as a state to depend on. See MIP-0006
+ * "Fill vs cancel".
+ */
+export type OfferStatus = "live" | "consumed" | "cancelled" | "expired";
 
 /**
  * Indexer discovery payload. Everything under `computed` is derived/observed.
  */
 export interface OffchainOfferPayload {
   version: 1;
-  offerBech32: string;
-  unverifiedMessage?: string;
+  /**
+   * Content address: lowercase hex SHA-256 of the raw offer bytes
+   * (OfferFiles.offerId). Presence rules (MIP-0006): at least one of
+   * offerId / offerBech32 MUST be present; lists SHOULD serve offerId and
+   * MAY omit offerBech32 (16–25 KB per offer); single-offer responses MUST
+   * include offerBech32.
+   */
+  offerId?: string;
+  offerBech32?: string;
   computed: {
     gives: TokenLeg[];
     wants: TokenLeg[];
     expiresAt?: string;
     inputNullifiers: string[];
     firstSeenAt: string;
-    status: OfferStatus;
+    status?: OfferStatus;
   };
 }
 
@@ -48,8 +60,9 @@ export interface OffchainOfferInput {
   inputNullifiers: string[];
   firstSeenAt: string;
   status: OfferStatus;
-  unverifiedMessage?: string;
   expiresAt?: string;
+  /** Default true. Set false for list contexts (offerId still included). */
+  includeBech32?: boolean;
   /** Default true — reject give-only / want-only offers. */
   requireTwoSided?: boolean;
 }
