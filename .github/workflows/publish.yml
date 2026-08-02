@@ -1,0 +1,53 @@
+name: Publish to npm
+
+# Publishes ONLY when a version tag is pushed (e.g. `git tag v0.3.0 && git
+# push origin v0.3.0`). Merging PRs never publishes — the A7 hold (no publish
+# until the MIP drafts pass final review) stays in force until someone
+# deliberately cuts a tag.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  # OIDC token for npm Trusted Publishing — lets npm verify this exact
+  # repo+workflow published the tarball, no long-lived token in secrets.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Test
+        run: bun test
+
+      - name: Guard — tag must match package.json version
+        run: |
+          PKG=$(bun -e 'console.log(require("./package.json").version)')
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$PKG" != "$TAG" ]; then
+            echo "::error::tag v$TAG != package.json $PKG"; exit 1
+          fi
+
+      # npm CLI ≥ 11.5 required for Trusted Publishing (OIDC).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Publish (provenance via Trusted Publishing)
+        run: npm publish --access public
+        # ── One-time setup on npmjs.com (package → Settings → Trusted
+        # Publisher): repo `effectstream/mip-zswap-offer`, workflow
+        # `publish.yml`. Until that's configured, OIDC publish fails with
+        # E404/ENEEDAUTH — either set it up, or fall back to a classic
+        # granular automation token:
+        #   env:
+        #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
