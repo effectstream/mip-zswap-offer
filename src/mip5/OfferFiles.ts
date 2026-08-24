@@ -13,7 +13,7 @@ import {
   type Bindingish,
   type Proofish,
   type Signaturish,
-} from "@midnight-ntwrk/ledger-v8";
+} from "@midnightntwrk/ledger-v9";
 
 /** Human-readable part for offer-file strings (`swapoffer1…`). */
 export const OFFER_HRP = "swapoffer";

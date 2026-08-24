@@ -1,9 +1,13 @@
 {
   "name": "@effectstream/mip-zswap-offer",
-  "version": "0.3.0",
+  "version": "0.4.0-v9.0",
   "description": "MIP-0005 Offer Files + MIP-0006 P2P Atomic Swaps reference library",
   "type": "module",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effectstream/mip-zswap-offer.git"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -29,11 +33,11 @@
     "prepublishOnly": "bun run build"
   },
   "peerDependencies": {
-    "@midnight-ntwrk/ledger-v8": "*",
+    "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
     "@scure/base": "^1.1.0 || ^2.0.0"
   },
   "devDependencies": {
-    "@midnight-ntwrk/ledger-v8": "8.0.3",
+    "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
     "@scure/base": "^2.0.0",
     "@types/bun": "^1.2.0",
     "typescript": "^5.8.0"

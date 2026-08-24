@@ -5,7 +5,7 @@
  * Auth (BIP-340) was removed from the MIP — do not reintroduce wrapper signing.
  */
 
-import type { TokenType, UnprovenTransaction } from "@midnight-ntwrk/ledger-v8";
+import type { TokenType, UnprovenTransaction } from "@midnightntwrk/ledger-v9";
 
 import { OfferFiles } from "../mip5/OfferFiles.js";
 import type {
