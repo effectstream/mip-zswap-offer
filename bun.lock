@@ -3,7 +3,8 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "mip-zswap-offer",
+      "name": "@effectstream/mip-zswap-offer",
+      "version": "0.4.0-v9.0",
       "dependencies": {
         "@noble/hashes": "^1.8.0",
       },

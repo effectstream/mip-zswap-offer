@@ -1,0 +1,60 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*-v9.*"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Assert Node and npm minimums
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .github/release-guard.mjs runtime "$(node -p 'process.versions.node')" "$(npm --version)"
+
+      - name: Guard exact tag, version, repository, and channel
+        run: node .github/release-guard.mjs release
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Run all tests
+        run: bun test && bun test ./.github/release-guard.test.ts
+
+      - name: Inspect package contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACK_REPORT="$RUNNER_TEMP/mip-zswap-offer-pack.json"
+          npm pack --dry-run --json > "$PACK_REPORT"
+          node .github/release-guard.mjs pack "$PACK_REPORT"
+
+      - name: Publish with trusted publishing
+        run: npm publish --access public --tag ledger-v9

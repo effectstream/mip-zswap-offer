@@ -1,9 +1,13 @@
 {
   "name": "@effectstream/mip-zswap-offer",
-  "version": "0.3.0",
+  "version": "0.4.0-v9.0",
   "description": "MIP-0005 Offer Files + MIP-0006 P2P Atomic Swaps reference library",
   "type": "module",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effectstream/mip-zswap-offer.git"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
