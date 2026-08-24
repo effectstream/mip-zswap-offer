@@ -2,7 +2,7 @@
  * MIP-0006 payload and discovery types.
  */
 
-import type { UnprovenTransaction } from "@midnight-ntwrk/ledger-v8";
+import type { UnprovenTransaction } from "@midnightntwrk/ledger-v9";
 
 export type TokenKind = "SHIELDED" | "UNSHIELDED";
 

@@ -6,6 +6,7 @@ import {
   P2pAtomicSwaps,
   UnknownTokenTagError,
 } from "../src/mip6/P2pAtomicSwaps.ts";
+import { makeUnprovenShieldedOutputOffer } from "./ledger-v9-fixtures.ts";
 
 const shielded = (raw: string) => ({ tag: "shielded" as const, raw });
 const unshielded = (raw: string) => ({ tag: "unshielded" as const, raw });
@@ -27,6 +28,15 @@ function mockTx(opts: {
 }
 
 describe("MIP-0006 P2pAtomicSwaps.deriveTokenLegs", () => {
+  test("derives legs from a real ledger-v9 transaction", () => {
+    const token = "ab".repeat(32);
+    const tx = makeUnprovenShieldedOutputOffer(37n, token);
+    expect(P2pAtomicSwaps.deriveTokenLegs(tx)).toEqual({
+      gives: [],
+      wants: [{ token, amount: "37", type: "SHIELDED" }],
+    });
+  });
+
   test("tags legs SHIELDED / UNSHIELDED; dust ignored", () => {
     const tx = mockTx({
       imbalances: new Map([

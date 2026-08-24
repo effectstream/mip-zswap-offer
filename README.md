@@ -15,16 +15,16 @@ payload, on-chain/off-chain split, auth removed, derived typed legs).
 ## Install
 
 ```bash
-npm  add mip-zswap-offer
-pnpm add mip-zswap-offer
-bun  add mip-zswap-offer
+npm  add @effectstream/mip-zswap-offer
+pnpm add @effectstream/mip-zswap-offer
+bun  add @effectstream/mip-zswap-offer
 ```
 
 Peer dependencies:
 
 ```json
 {
-  "@midnight-ntwrk/ledger-v8": "*",
+  "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
   "@scure/base": "^1.1.0 || ^2.0.0"
 }
 ```
@@ -36,8 +36,8 @@ Peer dependencies:
 ### MIP-0005 — encode / decode
 
 ```typescript
-import { OfferFiles } from "mip-zswap-offer/mip5";
-// or: import { OfferFiles } from "mip-zswap-offer";
+import { OfferFiles } from "@effectstream/mip-zswap-offer/mip5";
+// or: import { OfferFiles } from "@effectstream/mip-zswap-offer";
 
 const bech32 = OfferFiles.encode(tx.serialize()); // swapoffer1…
 const bytes = OfferFiles.decode(bech32);
@@ -47,9 +47,10 @@ const tx2 = OfferFiles.fromBech32(bech32);
 ### MIP-0006 — DA + discovery payloads
 
 ```typescript
-import { P2pAtomicSwaps } from "mip-zswap-offer/mip6";
+import { P2pAtomicSwaps } from "@effectstream/mip-zswap-offer/mip6";
 
-const onchain = P2pAtomicSwaps.buildOnchain(offerBytes, "optional note");
+// The MIP-0006 DA blob is the raw MIP-0005 transaction bytes.
+const offerBytes = tx.serialize();
 const { gives, wants } = P2pAtomicSwaps.deriveTokenLegs(tx);
 P2pAtomicSwaps.assertTwoSided(gives, wants);
 
@@ -61,6 +62,20 @@ const offchain = P2pAtomicSwaps.toOffchain({
   status: "live",
 });
 ```
+
+## Ledger-v9 compatibility (breaking)
+
+This line uses the Midnight 2.x transaction representation from
+`@midnightntwrk/ledger-v9@1.0.0-rc.3`. The `swapoffer` HRP, bech32m envelope,
+MIP-0006 raw-blob rule, and SHA-256 `offerId` algorithm are unchanged, but the
+bytes inside the envelope are now ledger-v9 `Transaction` bytes.
+
+That dependency and wire-format boundary is breaking relative to version
+0.3.0, which used `@midnight-ntwrk/ledger-v8`. V8 offer bytes are not a
+supported input to this v9 codec and there is no implicit conversion. Producers,
+validators, and takers must upgrade atomically and must not load v8 and v9
+ledger WASM in the same process. Existing v8 offers must be regenerated or
+handled by an isolated legacy reader.
 
 ---
 
