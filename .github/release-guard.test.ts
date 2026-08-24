@@ -112,7 +112,22 @@ describe("publish workflow", () => {
     expect(workflow).not.toContain("workflow_dispatch");
     expect(workflow).toContain("  contents: read");
     expect(workflow).toContain("  id-token: write");
-    expect(workflow).toContain("    runs-on: ubuntu-latest");
+    expect(workflow).toContain("    runs-on: ubuntu-24.04");
+    expect(workflow).toContain(
+      "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6",
+    );
+    expect(workflow).toContain(
+      "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6",
+    );
+    expect(workflow).toContain(
+      "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2",
+    );
+    expect(workflow).toContain('node-version: "24.19.0"');
+    expect(workflow).toContain("bun-version: 1.4.0");
+    expect(workflow).not.toContain("bun-version: latest");
+    for (const uses of workflow.matchAll(/uses:\s*[^@\s]+@([^\s#]+)/g)) {
+      expect(uses[1]).toMatch(/^[0-9a-f]{40}$/);
+    }
     expect(workflow.match(/npm publish/g)?.length).toBe(1);
     expect(workflow).toContain("npm publish --access public --tag ledger-v9");
 
