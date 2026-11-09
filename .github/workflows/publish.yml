@@ -3,7 +3,7 @@ name: Publish to npm
 on:
   push:
     tags:
-      - "v*-v9.*"
+      - "v*"
 
 permissions:
   contents: read
@@ -32,7 +32,9 @@ jobs:
           set -euo pipefail
           node .github/release-guard.mjs runtime "$(node -p 'process.versions.node')" "$(npm --version)"
 
+      # Stable versions get dist-tag "latest", prereleases "next"; any other tag fails here.
       - name: Guard exact tag, version, repository, and channel
+        id: guard
         run: node .github/release-guard.mjs release
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -48,13 +50,33 @@ jobs:
       - name: Run all tests
         run: bun test && bun test ./.github/release-guard.test.ts
 
-      - name: Inspect package contents
+      # The tarball packed and inspected here is the exact file that is published,
+      # so its integrity can be compared with what the registry serves.
+      - name: Pack and inspect the release tarball
+        id: pack
         shell: bash
         run: |
           set -euo pipefail
-          PACK_REPORT="$RUNNER_TEMP/mip-zswap-offer-pack.json"
-          npm pack --dry-run --json > "$PACK_REPORT"
-          node .github/release-guard.mjs pack "$PACK_REPORT"
+          mkdir -p "$RUNNER_TEMP/pack"
+          npm pack --pack-destination "$RUNNER_TEMP/pack" --json > "$RUNNER_TEMP/pack-report.json"
+          node .github/release-guard.mjs pack "$RUNNER_TEMP/pack-report.json"
 
+      # npm can exit non-zero after the registry already accepted the upload. In that
+      # case the step passes only if the registry serves this version with the same
+      # integrity as the packed tarball; otherwise the original failure stands.
       - name: Publish with trusted publishing
-        run: npm publish --access public --tag ledger-v9
+        shell: bash
+        env:
+          DIST_TAG: ${{ steps.guard.outputs.dist_tag }}
+          TARBALL_NAME: ${{ steps.pack.outputs.filename }}
+        run: |
+          set -euo pipefail
+          : "${DIST_TAG:?release guard did not set a dist-tag}"
+          : "${TARBALL_NAME:?pack guard did not set a tarball filename}"
+          TARBALL="$RUNNER_TEMP/pack/$TARBALL_NAME"
+          test -f "$TARBALL"
+          status=0
+          npm publish "$TARBALL" --access public --tag "$DIST_TAG" || status=$?
+          if [ "$status" -ne 0 ]; then
+            node .github/release-guard.mjs verify-published "$RUNNER_TEMP/pack-report.json" "$status"
+          fi
