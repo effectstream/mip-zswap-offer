@@ -15,19 +15,24 @@ payload, on-chain/off-chain split, auth removed, derived typed legs).
 ## Install
 
 ```bash
-npm  add @effectstream/mip-zswap-offer
-pnpm add @effectstream/mip-zswap-offer
-bun  add @effectstream/mip-zswap-offer
+npm  add @effectstream/mip-zswap-offer @midnightntwrk/ledger-v9@^1.0.0 @scure/base
+pnpm add @effectstream/mip-zswap-offer @midnightntwrk/ledger-v9@^1.0.0 @scure/base
+bun  add @effectstream/mip-zswap-offer @midnightntwrk/ledger-v9@^1.0.0 @scure/base
 ```
 
 Peer dependencies:
 
 ```json
 {
-  "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
+  "@midnightntwrk/ledger-v9": "^1.0.0",
   "@scure/base": "^1.1.0 || ^2.0.0"
 }
 ```
+
+The package is built and tested against `@midnightntwrk/ledger-v9` `1.0.0`,
+the version the stable Midnight JS client set pins. Use the same
+`ledger-v9` version as the rest of your Midnight stack: two copies of the
+ledger WASM in one process cannot exchange objects.
 
 ---
 
@@ -63,19 +68,29 @@ const offchain = P2pAtomicSwaps.toOffchain({
 });
 ```
 
-## Ledger-v9 compatibility (breaking)
+## Compatibility
 
-This line uses the Midnight 2.x transaction representation from
-`@midnightntwrk/ledger-v9@1.0.0-rc.3`. The `swapoffer` HRP, bech32m envelope,
-MIP-0006 raw-blob rule, and SHA-256 `offerId` algorithm are unchanged, but the
-bytes inside the envelope are now ledger-v9 `Transaction` bytes.
+Midnight mainnet, preview and preprod all run ledger 9. This package encodes
+and decodes ledger-9 `Transaction` bytes through `@midnightntwrk/ledger-v9`
+(`^1.0.0`). Release candidates of `ledger-v9` (such as `1.0.0-rc.3`) are
+outside the peer range and are not supported: they do not match the live
+networks.
 
-That dependency and wire-format boundary is breaking relative to version
-0.3.0, which used `@midnight-ntwrk/ledger-v8`. V8 offer bytes are not a
-supported input to this v9 codec and there is no implicit conversion. Producers,
-validators, and takers must upgrade atomically and must not load v8 and v9
-ledger WASM in the same process. Existing v8 offers must be regenerated or
-handled by an isolated legacy reader.
+The `swapoffer` HRP, bech32m envelope, MIP-0006 raw-blob rule, and SHA-256
+`offerId` algorithm are the same as in the ledger-v8 line, but the bytes inside
+the envelope are ledger-9 `Transaction` bytes. V8 offer bytes are not a
+supported input and there is no implicit conversion. Producers, validators, and
+takers must upgrade together and must not load v8 and v9 ledger WASM in the
+same process. Existing v8 offers must be regenerated or handled by an isolated
+legacy reader.
+
+### Version history
+
+| Version | Ledger | Status |
+| --- | --- | --- |
+| `0.4.0` | `@midnightntwrk/ledger-v9` `^1.0.0` (ledger 9) | Current, npm `latest` |
+| `0.4.0-v9.0` | `@midnightntwrk/ledger-v9` `1.0.0-rc.3` | Release-candidate prerelease, deprecated: use `0.4.0` |
+| `0.3.x` | `@midnight-ntwrk/ledger-v8` | Last ledger-v8 line; no live network runs ledger 8 |
 
 ---
 
@@ -113,11 +128,33 @@ Does not: wallet SDK, Celestia publish, indexer REST, nullifier monitoring.
 
 ## Testing
 
+CI and the publish workflow use Bun 1.4.0.
+
 ```bash
-bun install
+bun install --frozen-lockfile
 bun test
 bun run build
+bun test ./.github/release-guard.test.ts   # release workflow guard
 ```
+
+---
+
+## Releasing
+
+Publishing runs in GitHub Actions (`.github/workflows/publish.yml`) with npm
+trusted publishing; no npm token is stored in the repository.
+
+1. Set `version` in `package.json` and merge it to `main`.
+2. Push the tag `v<version>` (or create a GitHub release with that tag) at the
+   merge commit. The tag must equal `v` + the `package.json` version.
+3. The workflow publishes stable versions (`X.Y.Z`) with dist-tag `latest` and
+   prereleases (`X.Y.Z-<pre>`, for example `0.4.1-rc.1`) with dist-tag `next`.
+   The old `X.Y.Z-v9.N` prerelease scheme is rejected.
+
+The workflow packs the package once and publishes that tarball. If
+`npm publish` exits non-zero but the registry already serves that version with
+the same `dist.integrity` as the packed tarball, the run passes; otherwise it
+fails.
 
 ---
 
