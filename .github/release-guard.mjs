@@ -1,13 +1,24 @@
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, readFileSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
-export const RELEASE_DIST_TAG = "ledger-v9";
+export const STABLE_DIST_TAG = "latest";
+export const PRERELEASE_DIST_TAG = "next";
 export const EXPECTED_REPOSITORY = Object.freeze({
   type: "git",
   url: "https://github.com/effectstream/mip-zswap-offer.git",
 });
 
-const FULL_V9_PRERELEASE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-v9\.(0|[1-9]\d*)$/;
+// SemVer 2.0.0 without build metadata: npm drops "+build" from published
+// versions, so a tag carrying it could never equal the registry version.
+const SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$/;
+
+// Prereleases whose first identifier is "v9" (e.g. 0.4.0-v9.0) were the
+// ledger-v9 release-candidate channel. Stable versions replace that scheme,
+// so such versions are refused instead of being published to "next".
+const RETIRED_PRERELEASE = /^v9(?:\.|$)/;
 
 export function compareNumericVersions(left, right) {
   const a = left.replace(/^v/, "").split(".");
@@ -34,13 +45,27 @@ export function assertRuntimeMinimums(nodeVersion, npmVersion) {
   }
 }
 
+/** Stable versions publish to "latest", prereleases to "next". */
+export function distTagForVersion(version) {
+  const match = SEMVER.exec(version ?? "");
+  if (!match) {
+    throw new Error(
+      `Package version ${version || "missing"} is not a valid semver release version`,
+    );
+  }
+  const prerelease = match[4];
+  if (prerelease === undefined) return STABLE_DIST_TAG;
+  if (RETIRED_PRERELEASE.test(prerelease)) {
+    throw new Error(`Package version ${version} uses the retired -v9.N prerelease scheme`);
+  }
+  return PRERELEASE_DIST_TAG;
+}
+
 export function validateRelease({ refType, refName, pkg }) {
   if (refType !== "tag") {
     throw new Error(`Publish requires a Git tag ref, received ${refType || "missing"}`);
   }
-  if (!FULL_V9_PRERELEASE.test(pkg.version)) {
-    throw new Error(`Package version ${pkg.version} is not a full -v9.N prerelease`);
-  }
+  const distTag = distTagForVersion(pkg.version);
   const expectedTag = `v${pkg.version}`;
   if (refName !== expectedTag) {
     throw new Error(`Tag ${refName || "missing"} does not exactly match ${expectedTag}`);
@@ -53,7 +78,7 @@ export function validateRelease({ refType, refName, pkg }) {
       `repository metadata must exactly match ${JSON.stringify(EXPECTED_REPOSITORY)}`,
     );
   }
-  return { version: pkg.version, distTag: RELEASE_DIST_TAG, tag: expectedTag };
+  return { version: pkg.version, distTag, tag: expectedTag };
 }
 
 export function validatePackReport(report, pkg) {
@@ -65,6 +90,12 @@ export function validatePackReport(report, pkg) {
     throw new Error(
       `Packed identity ${packed.name}@${packed.version} does not match ${pkg.name}@${pkg.version}`,
     );
+  }
+  if (typeof packed.integrity !== "string" || packed.integrity.length === 0) {
+    throw new Error("npm pack report has no tarball integrity");
+  }
+  if (typeof packed.filename !== "string" || !/^[^/\\]+\.tgz$/.test(packed.filename)) {
+    throw new Error(`npm pack report has no plain .tgz filename: ${packed.filename}`);
   }
   const paths = new Set((packed.files ?? []).map((entry) => entry.path));
   for (const required of ["package.json", "README.md"]) {
@@ -85,7 +116,117 @@ export function validatePackReport(report, pkg) {
   if (forbidden.length > 0) {
     throw new Error(`Packed tarball contains forbidden files: ${forbidden.join(", ")}`);
   }
-  return { name: packed.name, version: packed.version, fileCount: paths.size };
+  return {
+    name: packed.name,
+    version: packed.version,
+    fileCount: paths.size,
+    integrity: packed.integrity,
+    filename: packed.filename,
+  };
+}
+
+/**
+ * Decides whether a publish step succeeded. npm can exit non-zero after the
+ * registry already accepted the upload (for example a 403 "cannot publish over
+ * previously published versions" answering a retried request). The registry is
+ * then the source of truth: the step succeeds only if it serves this exact
+ * version with the integrity of the tarball this run packed.
+ */
+export function decidePublishOutcome({ publishExitCode, localIntegrity, registryIntegrity }) {
+  if (!Number.isInteger(publishExitCode) || publishExitCode < 0) {
+    throw new Error(`Invalid npm publish exit code: ${publishExitCode}`);
+  }
+  if (publishExitCode === 0) {
+    return { ok: true, reason: "npm publish exited 0" };
+  }
+  if (!localIntegrity) {
+    return {
+      ok: false,
+      reason: `npm publish exited ${publishExitCode} and the local tarball integrity is unknown`,
+    };
+  }
+  if (!registryIntegrity) {
+    return {
+      ok: false,
+      reason: `npm publish exited ${publishExitCode} and the registry does not serve this version`,
+    };
+  }
+  if (registryIntegrity !== localIntegrity) {
+    return {
+      ok: false,
+      reason: `npm publish exited ${publishExitCode} and the registry serves a different tarball (registry ${registryIntegrity}, local ${localIntegrity})`,
+    };
+  }
+  return {
+    ok: true,
+    reason: `npm publish exited ${publishExitCode}, but the registry already serves this version with the identical integrity ${localIntegrity}`,
+  };
+}
+
+/** Returns the registry's dist.integrity for name@version, or "" when it cannot be read. */
+export function readRegistryIntegrity(name, version) {
+  try {
+    const output = execFileSync(
+      "npm",
+      ["view", `${name}@${version}`, "dist.integrity", "--json", "--prefer-online"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    ).trim();
+    const value = output === "" ? "" : JSON.parse(output);
+    return typeof value === "string" ? value : "";
+  } catch (error) {
+    const detail = String(error.stderr || error.message || "").trim().split("\n")[0];
+    console.error(`npm view ${name}@${version} failed: ${detail}`);
+    return "";
+  }
+}
+
+/**
+ * Reads the registry up to `attempts` times, because a version that was just
+ * published can take a few seconds to appear in the package metadata. A read
+ * that returns any integrity ends the loop, so a different tarball fails at once.
+ */
+export async function verifyPublished({
+  report,
+  pkg,
+  publishExitCode,
+  readIntegrity = readRegistryIntegrity,
+  attempts = 6,
+  delayMs = 10_000,
+}) {
+  const packed = validatePackReport(report, pkg);
+  const total = Math.max(1, attempts);
+  let registryIntegrity = "";
+  for (let attempt = 1; attempt <= total; attempt++) {
+    registryIntegrity = readIntegrity(packed.name, packed.version);
+    if (registryIntegrity) break;
+    if (attempt < total) await sleep(delayMs);
+  }
+  return decidePublishOutcome({
+    publishExitCode,
+    localIntegrity: packed.integrity,
+    registryIntegrity,
+  });
+}
+
+/** Appends key=value lines to the step output file when GitHub Actions provides one. */
+export function writeGithubOutput(entries, outputPath = process.env.GITHUB_OUTPUT) {
+  if (!outputPath) return;
+  for (const [key, value] of Object.entries(entries)) {
+    if (/[\r\n]/.test(String(value))) {
+      throw new Error(`GitHub output ${key} must be a single line`);
+    }
+    appendFileSync(outputPath, `${key}=${value}\n`);
+  }
+}
+
+function nonNegativeIntegerFromEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer, received ${raw}`);
+  }
+  return value;
 }
 
 function packageJson() {
@@ -106,17 +247,36 @@ if (isMain) {
         refName: process.env.GITHUB_REF_NAME,
         pkg: packageJson(),
       });
+      writeGithubOutput({ dist_tag: result.distTag });
       console.log(
         `Release guard satisfied: ${result.tag} -> ${result.version} on ${result.distTag}`,
       );
     } else if (command === "pack") {
       const report = JSON.parse(readFileSync(args[0], "utf8"));
       const result = validatePackReport(report, packageJson());
+      writeGithubOutput({ filename: result.filename, integrity: result.integrity });
       console.log(
-        `Pack guard satisfied: ${result.name}@${result.version}, ${result.fileCount} files`,
+        `Pack guard satisfied: ${result.name}@${result.version}, ${result.fileCount} files, ${result.filename} ${result.integrity}`,
       );
+    } else if (command === "verify-published") {
+      const exitArg = args[1] ?? "";
+      if (!/^\d+$/.test(exitArg)) {
+        throw new Error(`verify-published needs the npm publish exit code, received "${exitArg}"`);
+      }
+      const report = JSON.parse(readFileSync(args[0], "utf8"));
+      const outcome = await verifyPublished({
+        report,
+        pkg: packageJson(),
+        publishExitCode: Number(exitArg),
+        attempts: nonNegativeIntegerFromEnv("VERIFY_PUBLISHED_ATTEMPTS", 6),
+        delayMs: nonNegativeIntegerFromEnv("VERIFY_PUBLISHED_DELAY_MS", 10_000),
+      });
+      if (!outcome.ok) throw new Error(outcome.reason);
+      console.log(`Publish verified: ${outcome.reason}`);
     } else {
-      throw new Error("Usage: release-guard.mjs <runtime NODE NPM|release|pack REPORT_JSON>");
+      throw new Error(
+        "Usage: release-guard.mjs <runtime NODE NPM|release|pack REPORT_JSON|verify-published REPORT_JSON PUBLISH_EXIT_CODE>",
+      );
     }
   } catch (error) {
     console.error(`release guard failed: ${error.message}`);
